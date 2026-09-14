@@ -1,0 +1,38 @@
+name: Build OpenWrt for GL-MT5000
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      # 删除原来的配置生成步骤，改用 make defconfig
+      # 因为根目录已有 .config 文件
+      - name: Finalize config
+        run: |
+          make defconfig
+
+      - name: Download dependencies
+        run: make download -j$(nproc)
+
+      - name: Build firmware
+        run: make -j$(nproc) V=s
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-firmware
+          path: bin/targets/**
